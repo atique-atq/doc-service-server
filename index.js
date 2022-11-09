@@ -22,7 +22,7 @@ app.get('/', (req, res) => {
 async function run() {
     try {
         const serviceCollection = client.db('docService').collection('services');
-        const orderCollection = client.db('docService').collection('orders');
+        const reviewCollection = client.db('docService').collection('reviews');
 
         app.get('/services', async (req, res) => {
             const size = parseInt(req.query.size);
@@ -31,6 +31,24 @@ async function run() {
             const services = size ? await cursor.limit(size).toArray() : await cursor.toArray();
             res.send(services);
         });
+
+        app.get('/service/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const service = await serviceCollection.findOne(query);
+            console.log('service', service);
+            res.send(service)
+        });
+
+        // review api
+        app.post('/review', async (req, res) => {
+            const order = req.body;
+            console.log('req is: ...', order)
+            const result = await reviewCollection.insertOne(order);
+            console.log('order:', result);
+            res.send(result);
+        });
+
     }
     finally {
 
