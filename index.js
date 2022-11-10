@@ -23,6 +23,7 @@ function verifyJWT(req, res, next) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
+        console.log('found you!');
         return res.status(401).send({ message: 'unauthorized access' });
     }
     const token = authHeader.split(' ')[1];
@@ -52,7 +53,6 @@ async function run() {
             const query = {}
             const cursor = serviceCollection.find(query);
             let services = []
-            // const products = await cursor.skip(page * size).limit(size).toArray();
             if (size) {
                 const totalCount = await serviceCollection.estimatedDocumentCount();
                 const skipValue = totalCount - size;
@@ -96,6 +96,16 @@ async function run() {
             res.send(reviews);
         })
 
+        //get reviews by  id
+        app.get('/reviewById/:_id', async (req, res) => {
+            const id = req.params._id;
+            console.log('id--', id);
+            const query = { _id: ObjectId(id) };
+            const review = await reviewCollection.findOne(query);
+            console.log('single review', review);
+            res.send(review);
+        })
+
         //get reviews for a specific user
         app.get('/reviews', verifyJWT, async (req, res) => {
             const decoded = req.decoded;
@@ -117,6 +127,20 @@ async function run() {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const result = await reviewCollection.deleteOne(query);
+            res.send(result);
+        })
+
+        //update review
+        app.patch('/review/:id', async (req, res) => {
+            const id = req.params.id;
+            const newText = req.body.reviewText;
+            const query = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    reviewText: newText,
+                }
+            }
+            const result = await reviewCollection.updateOne(query, updatedDoc)
             res.send(result);
         })
 
