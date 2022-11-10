@@ -19,16 +19,48 @@ app.get('/', (req, res) => {
     res.send('News API Running');
 })
 
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+        return res.status(401).send({ message: 'unauthorized access' });
+    }
+    const token = authHeader.split(' ')[1];
+
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+        if (err) {
+            return res.status(403).send({ message: 'Forbidden access' });
+        }
+        req.decoded = decoded;
+        next();
+    })
+}
+
 async function run() {
     try {
         const serviceCollection = client.db('docService').collection('services');
         const reviewCollection = client.db('docService').collection('reviews');
 
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
+            res.send({ token })
+        })
+
         app.get('/services', async (req, res) => {
             const size = parseInt(req.query.size);
             const query = {}
             const cursor = serviceCollection.find(query);
-            const services = size ? await cursor.limit(size).toArray() : await cursor.toArray();
+            let services = []
+            // const products = await cursor.skip(page * size).limit(size).toArray();
+            if (size) {
+                const totalCount = await serviceCollection.estimatedDocumentCount();
+                const skipValue = totalCount - size;
+                services = await cursor.skip(skipValue).limit(size).toArray();
+            }
+            else {
+                services = await cursor.toArray();
+            }
             res.send(services);
         });
 
@@ -39,10 +71,15 @@ async function run() {
             res.send(service)
         });
 
+        app.post('/addService', async (req, res) => {
+            const service = req.body;
+            const result = await serviceCollection.insertOne(service);
+            res.send(result);
+        });
+
         // review api
         app.post('/review', async (req, res) => {
             const order = req.body;
-            console.log('req is: ...', order);
             const result = await reviewCollection.insertOne(order);
             console.log('order:', result);
             res.send(result);
@@ -51,7 +88,6 @@ async function run() {
         //get reviews for a specific service id
         app.get('/review/:id', async (req, res) => {
             const id = req.params.id;
-            console.log('----', id);
             const query = { serviceId: id };
             console.log(query);
             const cursor = reviewCollection.find(query);
@@ -61,15 +97,18 @@ async function run() {
         })
 
         //get reviews for a specific user
-        app.get('/reviews', async (req, res) => {
+        app.get('/reviews', verifyJWT, async (req, res) => {
+            const decoded = req.decoded;
+            if (decoded.email !== req.query.email) {
+                res.status(403).send({ message: 'unauthorized access' })
+            }
+
             let query = {}
             if (req.query.email) {
-                console.log(req.query.email)
                 query = { userEmail: req.query.email }
             }
             const cursor = reviewCollection.find(query);
             const reviews = await cursor.toArray();
-            console.log(reviews)
             res.send(reviews);
         })
 
