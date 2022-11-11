@@ -16,7 +16,7 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@clu
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 app.get('/', (req, res) => {
-    res.send('News API Running');
+    res.send('Doc service API Running');
 })
 
 function verifyJWT(req, res, next) {
@@ -90,13 +90,13 @@ async function run() {
             const id = req.params.id;
             const query = { serviceId: id };
             console.log(query);
-            const cursor = reviewCollection.find(query);
+            const cursor = reviewCollection.find(query).sort({ insertingTime: -1 });
             const reviews = await cursor.toArray();
             console.log(reviews);
             res.send(reviews);
         })
 
-        //get reviews by  id
+        //get reviews by id
         app.get('/reviewById/:_id', async (req, res) => {
             const id = req.params._id;
             console.log('id--', id);
